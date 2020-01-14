@@ -3,6 +3,8 @@ import logging
 import re as reg
 import sys
 from typing import Any, Dict, List, Pattern  # noqa: F401
+import json
+import io
 
 import click
 
@@ -11,6 +13,7 @@ from homeassistant_cli.cli import pass_context
 from homeassistant_cli.config import Configuration
 from homeassistant_cli.helper import format_output, to_attributes
 import homeassistant_cli.remote as api
+from homeassistant_cli.yaml import yaml
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -75,6 +78,48 @@ def list_cmd(ctx: Configuration, servicefilter):
     )
 
 
+def _argument_callback(ctx, param, value):
+    _LOGGING.debug("_argument_callback called, %s(%s)", param.name, value)
+
+    # We get called with value None
+    # for all the callbacks which aren't provided.
+    if value is None:
+        return
+
+    if 'data' in ctx.params and ctx.params['data'] is not None:
+        _LOGGING.error("You can only specify one type of the argument types!")
+        _LOGGING.debug(ctx.params)
+        ctx.exit()
+
+    if value == '-':  # read from stdin
+        _LOGGING.debug("Loading value from stdin")
+        value = sys.stdin
+    elif value.startswith('@'):  # read from file
+        _LOGGING.debug("Loading value from file: %s", value[1:])
+        value = open(value[1:], 'r')
+    else:
+        _LOGGING.debug("Using value as is: %s", value)
+
+    if param.name == 'arguments':
+        result = to_attributes(value)
+    elif param.name == 'json':
+        # We need to use different json calls to load from stream or string
+        if isinstance(value, str):
+            result = json.loads(value)
+        else:
+            result = json.load(value)
+    elif param.name == 'yaml':
+        result = yaml().load(value)
+    else:
+        _LOGGING.error("Parameter name is unknown: %s", param.name)
+        ctx.exit()
+
+    if isinstance(value, io.IOBase):
+        value.close()
+
+    ctx.params['data'] = result
+
+
 @cli.command('call')
 @click.argument(
     'service',
@@ -82,10 +127,28 @@ def list_cmd(ctx: Configuration, servicefilter):
     autocompletion=autocompletion.services,  # type: ignore
 )
 @click.option(
-    '--arguments', help="Comma separated key/value pairs to use as arguments."
+    '--arguments', help="""Comma separated key/value pairs to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=_argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--json', help="""Json string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=_argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--yaml', help="""Yaml string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=_argument_callback,
+    expose_value=False
 )
 @pass_context
-def call(ctx: Configuration, service, arguments):
+def call(ctx: Configuration, service, data=None):
     """Call a service."""
     ctx.auto_output('data')
     _LOGGING.debug("service call <start>")
@@ -94,10 +157,7 @@ def call(ctx: Configuration, service, arguments):
         _LOGGING.error("Service name not following <domain>.<service> format")
         sys.exit(1)
 
-    _LOGGING.debug("Convert arguments %s to dict", arguments)
-    data = to_attributes(arguments)
-
-    _LOGGING.debug("service call_service")
+    _LOGGING.debug("calling %s.%s(%s)", parts[0], parts[1], data)
 
     result = api.call_service(ctx, parts[0], parts[1], data)
 

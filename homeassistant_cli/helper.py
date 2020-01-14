@@ -5,6 +5,7 @@ import json
 import logging
 import shlex
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union, cast
+from typing import TextIO
 
 from ruamel.yaml import YAML
 from tabulate import tabulate
@@ -16,7 +17,7 @@ import homeassistant_cli.yaml as yaml
 _LOGGING = logging.getLogger(__name__)
 
 
-def to_attributes(entry: str) -> Dict[str, str]:
+def to_attributes(entry: Union[str, TextIO]) -> Dict[str, str]:
     """Convert list of key=value pairs to dictionary."""
     if not entry:
         return {}

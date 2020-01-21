@@ -93,7 +93,7 @@ class HomeAssistantCli(click.MultiCommand):
         except ImportError:
             # todo: print out issue of loading plugins?
             return None
-        return cast(Union[Group, Command], mod.cli)  # type: ignore
+        return cast(Union[Group, Command], mod.cli)
 
 
 def _default_token() -> Optional[str]:

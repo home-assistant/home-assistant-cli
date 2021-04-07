@@ -38,7 +38,7 @@ def _locate_ha() -> Optional[str]:
     listener = _ZeroconfListener()
     zeroconf.ServiceBrowser(_zeroconf, "_home-assistant._tcp.local.", listener)
     try:
-        import time
+        import time  # pylint: disable=import-outside-toplevel
 
         retries = 0
         while not listener.services and retries < 5:
@@ -120,6 +120,7 @@ class Configuration:
         self.session = None  # type: Optional[Session]
         self.cert = None  # type: Optional[str]
         self.columns = None  # type: Optional[List[Tuple[str, str]]]
+        self.columns_width = None  # type: Optional[int]
         self.no_headers = False
         self.table_format = 'plain'
         self.sort_by = None

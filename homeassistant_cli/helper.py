@@ -4,6 +4,7 @@ from http.client import HTTPConnection
 import json
 import logging
 import shlex
+import shutil
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union, cast
 
 from ruamel.yaml import YAML
@@ -51,6 +52,7 @@ def raw_format_output(
     data: Union[Dict[str, Any], List[Dict[str, Any]]],
     yamlparser: YAML,
     columns: Optional[List] = None,
+    columns_width: Optional[int] = -1,
     no_headers: bool = False,
     table_format: str = 'plain',
     sort_by: Optional[str] = None,
@@ -104,7 +106,27 @@ def raw_format_output(
                 val = [match.value for match in fmtpair[1].find(item)]
                 row.append(", ".join(map(str, val)))
             result.append(row)
+        # Truncates data
+        if not columns_width:
+            columns_width = const.COLUMNS_WIDTH_DEFAULT
 
+        if columns_width > -1:
+            if columns_width == 0:  # calculate size
+                terminal_size = shutil.get_terminal_size()
+                number_c = min([len(r) for r in result])
+                columns_width = int(terminal_size.columns / number_c)
+            max_str = columns_width - len(const.COLUMNS_WIDTH_STR)
+            result = [
+                [
+                    (
+                        c
+                        if len(c) < columns_width
+                        else c[:max_str] + const.COLUMNS_WIDTH_STR
+                    )
+                    for c in row
+                ]
+                for row in result
+            ]
         res = tabulate(
             result, headers=headers, tablefmt=table_format
         )  # type: str
@@ -142,6 +164,7 @@ def format_output(
         data,
         ctx.yaml(),
         columns,
+        ctx.columns_width,
         ctx.no_headers,
         ctx.table_format,
         ctx.sort_by,

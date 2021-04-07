@@ -137,6 +137,17 @@ def test_state_list_table_columns_sortby(
     )
 
 
+def test_state_list_table_columns_width(
+    basic_entities_text, basic_entities_table_fixed_width_text
+) -> None:
+    """Test table columns."""
+    output_formats(
+        ["--output=table", "--columns-width=15", "state", "list"],
+        basic_entities_text,
+        basic_entities_table_fixed_width_text,
+    )
+
+
 def test_state_list_no_header(
     basic_entities_text, basic_entities_table_no_header_text
 ) -> None:

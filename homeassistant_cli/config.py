@@ -15,7 +15,7 @@ import homeassistant_cli.yaml as yaml
 _LOGGING = logging.getLogger(__name__)
 
 
-class _ZeroconfListener:
+class _ZeroconfListener(zeroconf.ServiceListener):
     def __init__(self) -> None:
         self.services = {}  # type: Dict[str, zeroconf.ServiceInfo]
 
@@ -23,13 +23,16 @@ class _ZeroconfListener:
         self, _zeroconf: zeroconf.Zeroconf, _type: str, name: str
     ) -> None:
         """Remove service."""
-        self.services[name] = None
+        del self.services[name]
 
     def add_service(
         self, _zeroconf: zeroconf.Zeroconf, _type: str, name: str
     ) -> None:
         """Add service."""
-        self.services[name] = _zeroconf.get_service_info(_type, name)
+        service = _zeroconf.get_service_info(_type, name)
+        # Reject services which time out
+        if service:
+            self.services[name] = service
 
 
 def _locate_ha() -> Optional[str]:

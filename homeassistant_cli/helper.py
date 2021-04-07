@@ -5,6 +5,9 @@ import json
 import logging
 import shlex
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union, cast
+from typing import TextIO
+import sys
+import io
 
 from ruamel.yaml import YAML
 from tabulate import tabulate
@@ -16,7 +19,7 @@ import homeassistant_cli.yaml as yaml
 _LOGGING = logging.getLogger(__name__)
 
 
-def to_attributes(entry: str) -> Dict[str, str]:
+def to_attributes(entry: Union[str, TextIO]) -> Dict[str, str]:
     """Convert list of key=value pairs to dictionary."""
     if not entry:
         return {}
@@ -183,3 +186,46 @@ def debug_requests() -> Generator:
     debug_requests_on()
     yield
     debug_requests_off()
+
+
+def argument_callback(ctx, param, value):
+    """Helper to parse json, yaml and key-value arguments"""
+    _LOGGING.debug("_argument_callback called, %s(%s)", param.name, value)
+
+    # We get called with value None
+    # for all the callbacks which aren't provided.
+    if value is None:
+        return
+
+    if 'data' in ctx.params and ctx.params['data'] is not None:
+        _LOGGING.error("You can only specify one type of the argument types!")
+        _LOGGING.debug(ctx.params)
+        ctx.exit()
+
+    if value == '-':  # read from stdin
+        _LOGGING.debug("Loading value from stdin")
+        value = sys.stdin
+    elif value.startswith('@'):  # read from file
+        _LOGGING.debug("Loading value from file: %s", value[1:])
+        value = open(value[1:], 'r')
+    else:
+        _LOGGING.debug("Using value as is: %s", value)
+
+    if param.name == 'arguments':
+        result = to_attributes(value)
+    elif param.name == 'json':
+        # We need to use different json calls to load from stream or string
+        if isinstance(value, str):
+            result = json.loads(value)
+        else:
+            result = json.load(value)
+    elif param.name == 'yaml':
+        result = yaml().load(value)
+    else:
+        _LOGGING.error("Parameter name is unknown: %s", param.name)
+        ctx.exit()
+
+    if isinstance(value, io.IOBase):
+        value.close()
+
+    ctx.params['data'] = result

@@ -10,6 +10,7 @@ from homeassistant_cli.cli import pass_context
 from homeassistant_cli.config import Configuration
 from homeassistant_cli.helper import format_output
 import homeassistant_cli.remote as api
+from homeassistant_cli.helper import argument_callback
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -56,14 +57,23 @@ def get(ctx: Configuration, method):
 @click.argument(
     'method', autocompletion=autocompletion.api_methods  # type: ignore
 )
-@click.option('--json')
+@click.option(
+    '--json', help="""Json string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--yaml', help="""Yaml string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
 @pass_context
-def post(ctx: Configuration, method, json):
+def post(ctx: Configuration, method, data={}):
     """Do a POST request against api/<method>."""
-    if json:
-        data = json_.loads(json)
-    else:
-        data = {}
 
     response = api.restapi(ctx, 'post', method, data)
 
@@ -74,22 +84,26 @@ def post(ctx: Configuration, method, json):
 @click.argument(
     'wstype', autocompletion=autocompletion.wsapi_methods  # type: ignore
 )
-@click.option('--json')
+@click.option(
+    '--json', help="""Json string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--yaml', help="""Yaml string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
 @pass_context
-def websocket(ctx: Configuration, wstype, json):  # noqa: D301
+def websocket(ctx: Configuration, wstype, data={}):  # noqa: D301
     """Send a websocket request against /api/websocket.
 
     WSTYPE is name of websocket methods.
-
-    \b
-    --json is dictionary to pass in addition to the type.
-           Example: --json='{ "area_id":"2c8bf93c8082492f99c989896962f207" }'
     """
-    if json:
-        data = json_.loads(json)
-    else:
-        data = {}
-
     frame = {'type': wstype}
     frame = {**frame, **data}  # merging data into frame
 

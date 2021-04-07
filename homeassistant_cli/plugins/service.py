@@ -9,8 +9,9 @@ import click
 import homeassistant_cli.autocompletion as autocompletion
 from homeassistant_cli.cli import pass_context
 from homeassistant_cli.config import Configuration
-from homeassistant_cli.helper import format_output, to_attributes
+from homeassistant_cli.helper import format_output
 import homeassistant_cli.remote as api
+from homeassistant_cli.helper import argument_callback
 
 _LOGGING = logging.getLogger(__name__)
 
@@ -83,10 +84,28 @@ def list_cmd(ctx: Configuration, servicefilter):
     autocompletion=autocompletion.services,  # type: ignore
 )
 @click.option(
-    '--arguments', help="Comma separated key/value pairs to use as arguments."
+    '--arguments', help="""Comma separated key/value pairs to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--json', help="""Json string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
+)
+@click.option(
+    '--yaml', help="""Yaml string to use as arguments.
+if string is -, the data is read from stdin, and if it starts with the letter @
+the rest should be a filename from which the data is read""",
+    callback=argument_callback,
+    expose_value=False
 )
 @pass_context
-def call(ctx: Configuration, service, arguments):
+def call(ctx: Configuration, service, data=None):
     """Call a service."""
     ctx.auto_output('data')
     _LOGGING.debug("service call <start>")
@@ -95,10 +114,7 @@ def call(ctx: Configuration, service, arguments):
         _LOGGING.error("Service name not following <domain>.<service> format")
         sys.exit(1)
 
-    _LOGGING.debug("Convert arguments %s to dict", arguments)
-    data = to_attributes(arguments)
-
-    _LOGGING.debug("service call_service")
+    _LOGGING.debug("calling %s.%s(%s)", parts[0], parts[1], data)
 
     result = api.call_service(ctx, parts[0], parts[1], data)
 
